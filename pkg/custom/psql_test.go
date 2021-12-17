@@ -9,7 +9,7 @@ import (
 
 func TestConnect(t *testing.T) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable protocolVersion=3",
+		"password=%s dbname=%s sslmode=disable",
 		"localhost", 4321, "postgres", "postgres", "postgres")
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {

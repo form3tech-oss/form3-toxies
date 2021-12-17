@@ -17,18 +17,19 @@ func (t *PsqlToxic) Pipe(stub *toxics.ToxicStub) {
 	reader := stream.NewChanReader(stub.Input)
 	reader.SetInterrupt(stub.Interrupt)
 
-	readStartupHeader := false
+	readStartupHeader := true
 
 	startupHeader := make([]byte, 8)
 	payloadHeader := make([]byte, 5)
 	upstream := make([]byte, 0)
+	var err error
 
 	for {
 		v := make([]byte, 4)
 		binary.BigEndian.PutUint32(v, 196608)
 
-		sample := make([]byte, 1000)
-		reader.Read(sample)
+		//sample := make([]byte, 1000)
+		//reader.Read(sample)
 
 		length := int32(0)
 
@@ -48,18 +49,18 @@ func (t *PsqlToxic) Pipe(stub *toxics.ToxicStub) {
 			fmt.Printf("protoVersion=%d\n", protoVersion)
 			upstream = startupHeader
 		} else {
-			_, _ = reader.Read(payloadHeader)
+			_, err = reader.Read(payloadHeader)
 
 			msgType := payloadHeader[0]
-			fmt.Printf("type=%d\n", msgType)
+			fmt.Printf("type=%s\n", string(msgType))
 
-			binary.Read(bytes.NewBuffer(startupHeader[0:4]), binary.LittleEndian, &length)
+			binary.Read(bytes.NewBuffer(payloadHeader[1:5]), binary.BigEndian, &length)
 
 			upstream = payloadHeader
 		}
 
-		msgbuf := make([]byte, length)
-		_, err := reader.Read(msgbuf)
+		msgbuf := make([]byte, length-4)
+		reader.Read(msgbuf)
 
 		fmt.Printf("cmd=%s\n", string(msgbuf))
 
