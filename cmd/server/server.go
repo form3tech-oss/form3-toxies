@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/Shopify/toxiproxy/v2"
+	"github.com/Shopify/toxiproxy/v2/toxics"
+
+	"github.com/form3tech-oss/form3-toxies/pkg/custom"
 )
 
 var (
@@ -24,6 +27,7 @@ func init() {
 	seed := flag.Int64("seed", time.Now().UTC().UnixNano(), "Seed for randomizing toxics with")
 	flag.Parse()
 	rand.Seed(*seed)
+	toxics.Register("psql", new(custom.PsqlToxic))
 }
 
 func main() {
