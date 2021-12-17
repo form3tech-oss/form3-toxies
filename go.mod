@@ -2,4 +2,7 @@ module github.com/form3tech-oss/form3-toxies
 
 go 1.16
 
-require github.com/Shopify/toxiproxy/v2 v2.2.0
+require (
+	github.com/Shopify/toxiproxy/v2 v2.2.0
+	github.com/lib/pq v1.10.4
+)

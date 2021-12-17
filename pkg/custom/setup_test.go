@@ -1,30 +1,31 @@
 package custom
 
 import (
-	"sync"
+	toxiclient "github.com/Shopify/toxiproxy/v2/client"
+	"github.com/Shopify/toxiproxy/v2/toxics"
 	"testing"
+	"time"
 
 	"github.com/Shopify/toxiproxy/v2"
 )
 
 func TestMain(m *testing.M) {
+	toxics.Register("psql", new(PsqlToxic))
+
 	server := toxiproxy.NewServer()
-	proxy := &toxiproxy.Proxy{
-		Mutex:    sync.Mutex{},
-		Name:     "postgres",
-		Listen:   "4321",
-		Upstream: "localhost:5432",
-		Enabled:  true,
-		Toxics: &toxiproxy.ToxicCollection{
-			Mutex: sync.Mutex{},
-		},
-	}
-	err := server.Collection.Add(proxy, true)
+
+	go server.Listen("localhost", "8474")
+	time.Sleep(1 * time.Second)
+
+	client := toxiclient.NewClient("localhost:8474")
+
+	proxy, err := client.CreateProxy("postgres", "localhost:4321", "localhost:5432")
 	if err != nil {
 		panic(err)
 	}
 
-	go server.Listen("localhost", "8474")
+	proxy.AddToxic("psql", "psql", "downstream", 100, nil)
 
 	m.Run()
+
 }
