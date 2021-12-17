@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	proxy.AddToxic("psql", "psql", "downstream", 100, nil)
+	proxy.AddToxic("psql", "psql", "upstream", 100, nil)
 
 	m.Run()
 

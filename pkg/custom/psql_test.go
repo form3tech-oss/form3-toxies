@@ -15,7 +15,7 @@ func TestConnect(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	rows, err := db.Query("SELECT 1")
+	rows, err := db.Query("SELECT 1 WHERE 1=1")
 	if err != nil {
 		panic(err)
 	}

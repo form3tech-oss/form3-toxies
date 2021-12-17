@@ -1,12 +1,12 @@
 package custom
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"github.com/Shopify/toxiproxy/v2/stream"
 	"github.com/Shopify/toxiproxy/v2/toxics"
 	"io"
+	"strings"
 )
 
 type PsqlToxic struct{}
@@ -17,61 +17,53 @@ func (t *PsqlToxic) Pipe(stub *toxics.ToxicStub) {
 	reader := stream.NewChanReader(stub.Input)
 	reader.SetInterrupt(stub.Interrupt)
 
-	readStartupHeader := true
+	readStartupHeader := false
 
 	startupHeader := make([]byte, 8)
 	payloadHeader := make([]byte, 5)
 	upstream := make([]byte, 0)
-	var err error
 
 	for {
-		v := make([]byte, 4)
-		binary.BigEndian.PutUint32(v, 196608)
-
-		//sample := make([]byte, 1000)
-		//reader.Read(sample)
-
 		length := int32(0)
 
 		if !readStartupHeader {
 			_, _ = reader.Read(startupHeader)
 			readStartupHeader = true
 
-			length = int32(binary.BigEndian.Uint32(startupHeader[0:4]))
-			protoVersion := binary.BigEndian.Uint32(startupHeader[4:8])
+			protoVersion := int32(0)
 
-			//binary.Read(bytes.NewBuffer(startupHeader[0:4]), binary.LittleEndian, &length)
-			//binary.Read(bytes.NewBuffer(startupHeader[4:8]), binary.LittleEndian, &protoVersion)
+			/*binary.Read(bytes.NewBuffer(startupHeader[0:4]), binary.BigEndian, &length)
+			binary.Read(bytes.NewBuffer(startupHeader[4:8]), binary.BigEndian, &protoVersion)
 
-			length = length - 4
-			//length = int(binary.BigEndian.Uint32(startupHeader[0:4]) - 4)
+			length = length - int32(n)*/
+			length = int32(binary.BigEndian.Uint32(startupHeader[0:4]) - 8)
+			protoVersion = int32(binary.BigEndian.Uint32(startupHeader[4:8]))
 
 			fmt.Printf("protoVersion=%d\n", protoVersion)
 			upstream = startupHeader
 		} else {
-			_, err = reader.Read(payloadHeader)
+			_, _ = reader.Read(payloadHeader)
 
-			msgType := payloadHeader[0]
-			fmt.Printf("type=%s\n", string(msgType))
+			msgType := rune(payloadHeader[0])
+			fmt.Printf("type=%c\n", msgType)
 
-			binary.Read(bytes.NewBuffer(payloadHeader[1:5]), binary.BigEndian, &length)
-
+			length = int32(binary.BigEndian.Uint32(payloadHeader[1:5]) - 4)
 			upstream = payloadHeader
 		}
 
-		msgbuf := make([]byte, length-4)
-		reader.Read(msgbuf)
+		msgbuf := make([]byte, length)
+		n, err := reader.Read(msgbuf)
 
-		fmt.Printf("cmd=%s\n", string(msgbuf))
+		fmt.Printf("len=%d, msgLen=%d, cmd=%s\n", length, n, strings.TrimRight(string(msgbuf[:n]), "\000"))
 
 		if err == stream.ErrInterrupted {
-			writer.Write(append(upstream, msgbuf...))
+			writer.Write(append(upstream, msgbuf[:n]...))
 			return
 		} else if err == io.EOF {
 			stub.Close()
 			return
 		}
-		writer.Write(append(upstream, msgbuf...))
+		writer.Write(append(upstream, msgbuf[:n]...))
 	}
 
 }
