@@ -2,68 +2,125 @@ package custom
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/Shopify/toxiproxy/v2/stream"
 	"github.com/Shopify/toxiproxy/v2/toxics"
 	"io"
 	"strings"
+	"time"
 )
 
 type PsqlToxic struct{}
 
+type PostgresMessage interface {
+	Read(reader io.Reader) ([]byte, error)
+	Next() PostgresMessage
+	String() string
+}
+
+type StartupMessage struct {
+	ProtocolVersion int
+	MessageLength   int
+	Message         []byte
+}
+
+type PayloadMessage struct {
+	payloadHeader []byte
+	MessageType   rune
+	MessageLength int
+	Message       []byte
+}
+
+func (m *StartupMessage) Read(reader io.Reader) ([]byte, error) {
+	startupHeader := make([]byte, 8)
+
+	n, err := reader.Read(startupHeader)
+	if err != nil {
+		return startupHeader[:n], err
+	}
+
+	if n != len(startupHeader) {
+		return startupHeader[:n], errors.New("malformed startup header")
+	}
+
+	m.MessageLength = int(binary.BigEndian.Uint32(startupHeader[0:4])) - 8
+	m.ProtocolVersion = int(binary.BigEndian.Uint32(startupHeader[4:8]))
+	m.Message = make([]byte, m.MessageLength)
+	n, err = reader.Read(m.Message)
+
+	if n != m.MessageLength {
+		return append(startupHeader, m.Message[:n]...), errors.New("malformed startup message")
+	}
+
+	return append(startupHeader, m.Message[:n]...), err
+}
+
+func (m *StartupMessage) String() string {
+	return fmt.Sprintf("protoVersion=%d", m.ProtocolVersion)
+}
+
+func (m *StartupMessage) Next() PostgresMessage {
+	return &PayloadMessage{
+		payloadHeader: make([]byte, 5),
+	}
+}
+
+func (m *PayloadMessage) Read(reader io.Reader) ([]byte, error) {
+	n, err := reader.Read(m.payloadHeader)
+	if err != nil {
+		return m.payloadHeader[:n], err
+	}
+
+	if n != len(m.payloadHeader) {
+		return m.payloadHeader[:n], errors.New("malformed payload header")
+	}
+
+	m.MessageType = rune(m.payloadHeader[0])
+	m.MessageLength = int(binary.BigEndian.Uint32(m.payloadHeader[1:5]) - 4)
+	m.Message = make([]byte, m.MessageLength)
+	n, err = reader.Read(m.Message)
+
+	if n != m.MessageLength {
+		return append(m.payloadHeader, m.Message[:n]...), errors.New("malformed payload message")
+	}
+
+	return append(m.payloadHeader, m.Message[:n]...), err
+}
+
+func (m *PayloadMessage) String() string {
+	return fmt.Sprintf("msgLen=%d, type=%c, cmd=%s", m.MessageLength, m.MessageType, strings.TrimRight(string(m.Message), "\000"))
+}
+
+func (m *PayloadMessage) Next() PostgresMessage {
+	return m
+}
+
 func (t *PsqlToxic) Pipe(stub *toxics.ToxicStub) {
-	//buf := make([]byte, 32*1024)
-	writer := stream.NewChanWriter(stub.Output)
 	reader := stream.NewChanReader(stub.Input)
 	reader.SetInterrupt(stub.Interrupt)
 
-	readStartupHeader := false
-
-	startupHeader := make([]byte, 8)
-	payloadHeader := make([]byte, 5)
-	upstream := make([]byte, 0)
-
+	var message PostgresMessage = &StartupMessage{}
 	for {
-		length := int32(0)
-
-		if !readStartupHeader {
-			_, _ = reader.Read(startupHeader)
-			readStartupHeader = true
-
-			protoVersion := int32(0)
-
-			/*binary.Read(bytes.NewBuffer(startupHeader[0:4]), binary.BigEndian, &length)
-			binary.Read(bytes.NewBuffer(startupHeader[4:8]), binary.BigEndian, &protoVersion)
-
-			length = length - int32(n)*/
-			length = int32(binary.BigEndian.Uint32(startupHeader[0:4]) - 8)
-			protoVersion = int32(binary.BigEndian.Uint32(startupHeader[4:8]))
-
-			fmt.Printf("protoVersion=%d\n", protoVersion)
-			upstream = startupHeader
-		} else {
-			_, _ = reader.Read(payloadHeader)
-
-			msgType := rune(payloadHeader[0])
-			fmt.Printf("type=%c\n", msgType)
-
-			length = int32(binary.BigEndian.Uint32(payloadHeader[1:5]) - 4)
-			upstream = payloadHeader
-		}
-
-		msgbuf := make([]byte, length)
-		n, err := reader.Read(msgbuf)
-
-		fmt.Printf("len=%d, msgLen=%d, cmd=%s\n", length, n, strings.TrimRight(string(msgbuf[:n]), "\000"))
+		read, err := message.Read(reader)
 
 		if err == stream.ErrInterrupted {
-			writer.Write(append(upstream, msgbuf[:n]...))
+			stub.Output <- &stream.StreamChunk{
+				Data:      read,
+				Timestamp: time.Now(),
+			}
 			return
 		} else if err == io.EOF {
 			stub.Close()
 			return
 		}
-		writer.Write(append(upstream, msgbuf[:n]...))
+		stub.Output <- &stream.StreamChunk{
+			Data:      read,
+			Timestamp: time.Now(),
+		}
+
+		fmt.Println(message.String())
+		message = message.Next()
 	}
 
 }
