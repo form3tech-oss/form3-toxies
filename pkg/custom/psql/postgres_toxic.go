@@ -2,10 +2,11 @@ package psql
 
 import (
 	"encoding/binary"
-	"github.com/Shopify/toxiproxy/v2/stream"
-	"github.com/Shopify/toxiproxy/v2/toxics"
 	"io"
 	"time"
+
+	"github.com/Shopify/toxiproxy/v2/stream"
+	"github.com/Shopify/toxiproxy/v2/toxics"
 )
 
 type FailureType string

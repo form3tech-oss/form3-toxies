@@ -3,10 +3,11 @@ package psql
 import (
 	"database/sql"
 	"fmt"
-	toxiclient "github.com/Shopify/toxiproxy/v2/client"
-	_ "github.com/lib/pq"
 	"strings"
 	"testing"
+
+	toxiclient "github.com/Shopify/toxiproxy/v2/client"
+	_ "github.com/lib/pq"
 )
 
 type PSQLTestStage struct {

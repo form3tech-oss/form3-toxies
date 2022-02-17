@@ -4,17 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/Shopify/toxiproxy/v2"
 	"github.com/Shopify/toxiproxy/v2/toxics"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"net"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 const postgresContainerName = "toxiproxy_postgres"

@@ -1,8 +1,9 @@
 package psql
 
 import (
-	_ "github.com/lib/pq"
 	"testing"
+
+	_ "github.com/lib/pq"
 )
 
 func TestNoFailure(t *testing.T) {
