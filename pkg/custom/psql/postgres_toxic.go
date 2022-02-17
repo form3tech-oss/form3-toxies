@@ -2,7 +2,6 @@ package psql
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/Shopify/toxiproxy/v2/stream"
 	"github.com/Shopify/toxiproxy/v2/toxics"
 	"io"
@@ -52,7 +51,6 @@ func (t *PostgresToxic) Pipe(stub *toxics.ToxicStub) {
 
 		if message.HasStatement(t.SearchText) {
 			t.matched++
-			fmt.Println(message.String())
 			if (t.FailAfter > 0 && t.matched > t.FailAfter) && (t.RecoverAfter == 0 || t.matched <= t.RecoverAfter) {
 				if t.FailureType == FailureTypeConnectionFailure {
 					stub.Close()
