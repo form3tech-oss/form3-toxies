@@ -14,6 +14,11 @@ build:
 	@echo "==> Building..."
 	@go install ./...
 
+.PHONY: test
+test:
+	@echo "==> Executing tests..."
+	@echo ${GOTEST_DIRECTORIES} | xargs -n1 go test --timeout 30m -v -count 1
+
 .PHONY: goimports
 goimports: install-goimports
 	goimports -w $(GOFMT_FILES)

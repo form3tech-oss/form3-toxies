@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/form3tech-oss/form3-toxies/pkg/custom/psql"
+	"github.com/form3tech-oss/form3-toxies/internal/custom/psql"
 
 	"github.com/Shopify/toxiproxy/v2"
 	"github.com/Shopify/toxiproxy/v2/toxics"
