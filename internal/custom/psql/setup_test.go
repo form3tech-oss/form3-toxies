@@ -18,6 +18,7 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+const postgresImageName = "postgres:14.2-alpine"
 const postgresContainerName = "toxiproxy_postgres"
 const postgresPort = 5432
 const postgresPassword = "postgres"
@@ -106,6 +107,11 @@ func runPostgresContainer() int {
 		panic(err)
 	}
 
+	_, err = docker.ImagePull(context.Background(), postgresImageName, types.ImagePullOptions{})
+	if err != nil {
+		panic(err)
+	}
+
 	if port := getContainerHostPort(postgresContainerName, postgresPort); port > 0 {
 		return port
 	}
@@ -127,7 +133,7 @@ func runPostgresContainer() int {
 	cont, err := docker.ContainerCreate(
 		context.Background(),
 		&container.Config{
-			Image: "postgres",
+			Image: postgresImageName,
 			Env: []string{
 				fmt.Sprintf("POSTGRES_PASSWORD=%s", postgresPassword),
 			},
