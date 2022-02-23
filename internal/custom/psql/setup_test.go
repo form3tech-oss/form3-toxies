@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -107,7 +109,12 @@ func runPostgresContainer() int {
 		panic(err)
 	}
 
-	_, err = docker.ImagePull(context.Background(), postgresImageName, types.ImagePullOptions{})
+	reader, err := docker.ImagePull(context.Background(), postgresImageName, types.ImagePullOptions{})
+	if err != nil {
+		panic(err)
+	}
+	defer reader.Close()
+	_, err = io.Copy(os.Stdout, reader)
 	if err != nil {
 		panic(err)
 	}
