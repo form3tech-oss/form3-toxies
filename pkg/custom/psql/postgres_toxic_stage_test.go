@@ -20,7 +20,7 @@ type PSQLTestStage struct {
 type options struct {
 	SearchText   string
 	FailureType  FailureType
-	FailAfter    int
+	FailOn       int
 	RecoverAfter int
 }
 
@@ -32,8 +32,7 @@ const ErrConnectionFailure = "bad connection"
 func PSQLTest(t *testing.T) (*PSQLTestStage, *PSQLTestStage, *PSQLTestStage) {
 	proxyPort, err := getFreePort()
 	if err != nil {
-		t.Error(err)
-		t.Fail()
+		t.Fatal(err)
 	}
 
 	stage := &PSQLTestStage{
@@ -46,8 +45,8 @@ func PSQLTest(t *testing.T) (*PSQLTestStage, *PSQLTestStage, *PSQLTestStage) {
 			stage.db.Close()
 		}
 
-		proxy, _ := toxiclient.NewClient(fmt.Sprintf("localhost:%d", toxiProxyPort)).Proxy(proxyName)
-		if proxy != nil {
+		proxy, err := toxiclient.NewClient(fmt.Sprintf("localhost:%d", toxiProxyPort)).Proxy(proxyName)
+		if err == nil && proxy != nil {
 			proxy.Delete()
 		}
 	})
@@ -59,15 +58,13 @@ func (s *PSQLTestStage) and() *PSQLTestStage {
 }
 
 func (s *PSQLTestStage) a_connection_to_postgres() *PSQLTestStage {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		"localhost", s.proxyPort, "postgres", "postgres", "postgres")
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		"localhost", s.proxyPort, "postgres", postgresPassword, "postgres")
 
 	db, err := sql.Open("postgres", psqlInfo)
 
 	if err != nil {
-		s.t.Error(err)
-		s.t.Fail()
+		s.t.Fatal(err)
 	}
 
 	s.db = db
@@ -82,21 +79,40 @@ func (s *PSQLTestStage) a_psql_toxic(o options) *PSQLTestStage {
 		fmt.Sprintf("localhost:%d", s.psqlPort))
 
 	if err != nil {
-		s.t.Error(err)
-		s.t.Fail()
+		s.t.Fatal(err)
 	}
 	_, err = proxy.AddToxic(toxicName, "psql", "upstream", 100, map[string]interface{}{
-		"FailAfter":    o.FailAfter,
+		"FailOn":       o.FailOn,
 		"SearchText":   o.SearchText,
 		"RecoverAfter": o.RecoverAfter,
 		"FailureType":  o.FailureType,
 	})
 
 	if err != nil {
-		s.t.Error(err)
-		s.t.Fail()
+		s.t.Fatal(err)
 	}
 
+	return s
+}
+
+func (s *PSQLTestStage) the_toxic_is_reconfigured(o options) *PSQLTestStage {
+	client := toxiclient.NewClient(fmt.Sprintf("localhost:%d", toxiProxyPort))
+	_, err := client.UpdateToxic(&toxiclient.ToxicOptions{
+		ProxyName: proxyName,
+		ToxicName: toxicName,
+		ToxicType: "psql",
+		Stream:    "upstream",
+		Toxicity:  100,
+		Attributes: map[string]interface{}{
+			"FailOn":       o.FailOn,
+			"SearchText":   o.SearchText,
+			"RecoverAfter": o.RecoverAfter,
+			"FailureType":  o.FailureType,
+		},
+	})
+	if err != nil {
+		s.t.Fatal(err)
+	}
 	return s
 }
 
@@ -104,14 +120,12 @@ func (s *PSQLTestStage) a_query_succeeds(q string) *PSQLTestStage {
 	rows, err := s.db.Query(q)
 
 	if err != nil {
-		s.t.Error(err)
-		s.t.Fail()
+		s.t.Fatal(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		s.t.Error(err)
-		s.t.Fail()
+		s.t.Fatal(err)
 	}
 
 	return s
@@ -123,8 +137,7 @@ func (s *PSQLTestStage) a_query_fails(q string, error string) *PSQLTestStage {
 
 	if err == nil || !strings.Contains(err.Error(), error) {
 		rows.Close()
-		s.t.Error("expected error but no error happened")
-		s.t.Fail()
+		s.t.Fatal("expected error but no error happened")
 	}
 
 	return s

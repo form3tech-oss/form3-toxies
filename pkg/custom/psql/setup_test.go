@@ -20,6 +20,7 @@ import (
 
 const postgresContainerName = "toxiproxy_postgres"
 const postgresPort = 5432
+const postgresPassword = "postgres"
 
 var toxiProxyPort int
 
@@ -42,9 +43,8 @@ func TestMain(m *testing.M) {
 }
 
 func waitForPostgres(psqlPort int) {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		"localhost", psqlPort, "postgres", "postgres", "postgres")
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		"localhost", psqlPort, "postgres", postgresPassword, "postgres")
 
 	for i := 0; i < 30; i++ {
 		db, err := sql.Open("postgres", psqlInfo)
@@ -121,7 +121,7 @@ func runPostgresContainer() int {
 	}
 	containerPort, err := nat.NewPort("tcp", strconv.Itoa(postgresPort))
 	if err != nil {
-		panic("Unable to get the port")
+		panic(err)
 	}
 
 	cont, err := docker.ContainerCreate(
@@ -129,7 +129,7 @@ func runPostgresContainer() int {
 		&container.Config{
 			Image: "postgres",
 			Env: []string{
-				"POSTGRES_PASSWORD=postgres",
+				fmt.Sprintf("POSTGRES_PASSWORD=%s", postgresPassword),
 			},
 		},
 		&container.HostConfig{

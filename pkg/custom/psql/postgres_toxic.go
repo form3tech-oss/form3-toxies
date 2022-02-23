@@ -3,6 +3,7 @@ package psql
 import (
 	"encoding/binary"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/Shopify/toxiproxy/v2/stream"
@@ -17,9 +18,9 @@ const FailureTypeConnectionFailure = "ConnectionFailure"
 type PostgresToxic struct {
 	FailureType  FailureType
 	SearchText   string
-	FailAfter    int
+	FailOn       int
 	RecoverAfter int
-	matched      int
+	matched      uint32
 }
 
 func BadMessage() []byte {
@@ -51,8 +52,8 @@ func (t *PostgresToxic) Pipe(stub *toxics.ToxicStub) {
 		}
 
 		if message.HasStatement(t.SearchText) {
-			t.matched++
-			if (t.FailAfter > 0 && t.matched > t.FailAfter) && (t.RecoverAfter == 0 || t.matched <= t.RecoverAfter) {
+			matched := int(atomic.AddUint32(&t.matched, 1))
+			if (t.FailOn > 0 && matched >= t.FailOn) && (t.RecoverAfter == 0 || matched <= t.RecoverAfter) {
 				if t.FailureType == FailureTypeConnectionFailure {
 					stub.Close()
 					return
