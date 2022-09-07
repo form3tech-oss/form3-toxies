@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/form3tech-oss/form3-toxies/internal/custom/httpcount"
 	"github.com/form3tech-oss/form3-toxies/internal/custom/psql"
 
 	"github.com/Shopify/toxiproxy/v2"
@@ -28,6 +29,7 @@ func init() {
 	flag.Parse()
 	rand.Seed(*seed)
 	toxics.Register("psql", new(psql.PostgresToxic))
+	toxics.Register("httpcount", new(httpcount.HttpCountToxic))
 }
 
 func main() {
