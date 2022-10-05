@@ -6,9 +6,14 @@ import (
 	"github.com/Shopify/toxiproxy/v2/toxics"
 )
 
+type Condition struct {
+	Path         string
+	FailAfter    int
+	SucceedAfter int
+}
 type HttpCountToxic struct {
-	FailOn int
-	count  int
+	Condition Condition
+	count     int
 }
 
 func (t *HttpCountToxic) Pipe(stub *toxics.ToxicStub) {
@@ -22,7 +27,7 @@ func (t *HttpCountToxic) Pipe(stub *toxics.ToxicStub) {
 				return
 			}
 			t.count = t.count + 1
-			if t.count == t.FailOn {
+			if t.count > t.Condition.FailAfter && t.count <= t.Condition.SucceedAfter {
 				fmt.Println("condition matched in http proxy failing.")
 				stub.Close()
 				return
