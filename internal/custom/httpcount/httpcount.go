@@ -2,6 +2,7 @@ package httpcount
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/Shopify/toxiproxy/v2/toxics"
@@ -32,7 +33,27 @@ func (t *HttpCountToxic) Pipe(stub *toxics.ToxicStub) {
 			fmt.Println("received data in http toxic ", string(c.Data))
 			method, path := getHTTPMethodAndPath(c.Data)
 			fmt.Printf("method is %s path is %s \n", method, path)
-			if condition, ok := t.Condition[path]; ok {
+			for pathRegex, condition := range t.Condition {
+				match, err := regexp.MatchString(pathRegex, path)
+				if err != nil {
+					fmt.Printf("Error %s when matching path with regex", err)
+					continue
+				}
+				if match {
+					if t.count == nil {
+						t.count = make(map[string]int)
+					}
+					count := t.count[path]
+					count++
+					t.count[path] = count
+					if method == condition.Method && count >= condition.FailOn && count <= condition.RecoverAfter {
+						fmt.Println("condition matched in http proxy failing.")
+						stub.Close()
+						return
+					}
+				}
+			}
+			/*if condition, ok := t.Condition[path]; ok {
 				if t.count == nil {
 					t.count = make(map[string]int)
 				}
@@ -44,7 +65,7 @@ func (t *HttpCountToxic) Pipe(stub *toxics.ToxicStub) {
 					stub.Close()
 					return
 				}
-			}
+			}*/
 			stub.Output <- c
 		}
 	}
