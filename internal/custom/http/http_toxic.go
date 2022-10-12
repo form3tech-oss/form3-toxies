@@ -1,4 +1,4 @@
-package httpcount
+package http
 
 import (
 	"fmt"
@@ -14,12 +14,12 @@ type Condition struct {
 	Method       string
 }
 
-type HttpCountToxic struct {
+type HttpToxic struct {
 	count     map[string]int
 	Condition map[string]Condition
 }
 
-func (t *HttpCountToxic) Pipe(stub *toxics.ToxicStub) {
+func (t *HttpToxic) Pipe(stub *toxics.ToxicStub) {
 	for {
 		select {
 		case <-stub.Interrupt:
