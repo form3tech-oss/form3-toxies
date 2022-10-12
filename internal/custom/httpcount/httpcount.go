@@ -53,19 +53,6 @@ func (t *HttpCountToxic) Pipe(stub *toxics.ToxicStub) {
 					}
 				}
 			}
-			/*if condition, ok := t.Condition[path]; ok {
-				if t.count == nil {
-					t.count = make(map[string]int)
-				}
-				count := t.count[path]
-				count++
-				t.count[path] = count
-				if method == condition.Method && count >= condition.FailOn && count <= condition.RecoverAfter {
-					fmt.Println("condition matched in http proxy failing.")
-					stub.Close()
-					return
-				}
-			}*/
 			stub.Output <- c
 		}
 	}
