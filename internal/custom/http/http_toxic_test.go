@@ -51,7 +51,8 @@ func Test_getHTTPMethod(t *testing.T) {
 func TestSuccess(t *testing.T) {
 	given, _, then := httpTest(t)
 	given.
-		a_http_toxic(nil)
+		a_http_toxic(nil).and().
+		a_http_server()
 
 	then.
 		a_http_call_succeeds("/test", "GET")

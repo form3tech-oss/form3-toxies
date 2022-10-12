@@ -31,35 +31,38 @@ func httpTest(t *testing.T) (*httpTestStage, *httpTestStage, *httpTestStage) {
 		httpServerPort: "30001",
 		proxyPort:      "30000",
 	}
+	return stage, stage, stage
+}
+
+func (s *httpTestStage) and() *httpTestStage {
+	return s
+}
+
+func (s *httpTestStage) a_http_server() *httpTestStage {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("successfully served slas")
 		fmt.Fprintf(w, "Hello World!")
 	})
 	httpServer := &http.Server{
-		Addr:    net.JoinHostPort("localhost", stage.httpServerPort),
+		Addr:    net.JoinHostPort("localhost", s.httpServerPort),
 		Handler: mux,
 	}
-	stage.httpServer = httpServer
-	fmt.Printf("Starting server at port %s\n", stage.httpServerPort)
+	s.httpServer = httpServer
+	fmt.Printf("Starting server at port %s\n", s.httpServerPort)
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
-				stage.t.Fatal("error starting http server", err)
+				s.t.Fatal("error starting http server", err)
 			}
 		}
 	}()
-	t.Cleanup(func() {
-		stage.httpServer.Shutdown(context.TODO())
-		stage.toxyProxy.Delete()
-		/*proxy, err := toxiclient.NewClient(net.JoinHostPort("localhost", toxiProxyPort)).Proxy(proxyName)
-		if err == nil && proxy != nil {
-			proxy.Delete()
-		}*/
+	s.t.Cleanup(func() {
+		s.httpServer.Shutdown(context.TODO())
+		s.toxyProxy.Delete()
 	})
-	return stage, stage, stage
+	return s
 }
-
 func (s *httpTestStage) a_http_toxic(proxyOption map[string]Condition) *httpTestStage {
 	client := toxiclient.NewClient(net.JoinHostPort("localhost", toxiProxyPort))
 	proxy, err := client.CreateProxy(proxyName,
