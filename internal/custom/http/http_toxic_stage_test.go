@@ -28,7 +28,7 @@ type httpTestStage struct {
 func httpTest(t *testing.T) (*httpTestStage, *httpTestStage, *httpTestStage) {
 	stage := &httpTestStage{
 		t:              t,
-		httpServerPort: "30001",
+		httpServerPort: "40000",
 		proxyPort:      "30000",
 	}
 	return stage, stage, stage
@@ -41,7 +41,7 @@ func (s *httpTestStage) and() *httpTestStage {
 func (s *httpTestStage) a_http_server() *httpTestStage {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("successfully served slas")
+		fmt.Println("successfully served slash")
 		fmt.Fprintf(w, "Hello World!")
 	})
 	httpServer := &http.Server{
