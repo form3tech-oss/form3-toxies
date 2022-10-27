@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"testing"
@@ -53,10 +54,11 @@ func (s *httpTestStage) a_http_server() *httpTestStage {
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
-				s.t.Fatal("error starting http server", err)
+				log.Fatal("error starting http server", err)
 			}
 		}
 	}()
+	time.Sleep(2 * time.Second)
 	s.t.Cleanup(func() {
 		s.httpServer.Shutdown(context.TODO())
 		s.toxyProxy.Delete()
@@ -85,7 +87,7 @@ func (s *httpTestStage) a_http_toxic(proxyOption map[string]Condition) *httpTest
 }
 
 func (s *httpTestStage) a_http_call_succeeds(path string, httpMethod string) *httpTestStage {
-	fmt.Println("calling http")
+	fmt.Println("calling http success")
 	httpClient := http.DefaultClient
 	httpClient.Timeout = 5 * time.Second
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
@@ -106,5 +108,30 @@ func (s *httpTestStage) a_http_call_succeeds(path string, httpMethod string) *ht
 		s.t.Logf("Expected 200 status code but got %d", resp.StatusCode)
 		s.t.FailNow()
 	}
+	return s
+}
+
+func (s *httpTestStage) a_http_call_fails(path string, httpMethod string) *httpTestStage {
+	fmt.Println("calling http failure")
+	httpClient := http.DefaultClient
+	httpClient.Timeout = 5 * time.Second
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFunc()
+	url := net.JoinHostPort("localhost", s.proxyPort)
+	url = "http://" + url + path
+	httpRequest, err := http.NewRequestWithContext(ctx, httpMethod, url, nil)
+	if err != nil {
+		s.t.Log(err)
+		s.t.FailNow()
+	}
+	_, err = httpClient.Do(httpRequest)
+	if err == nil {
+		s.t.Log("expected error, did not get one")
+		s.t.FailNow()
+	}
+	// if resp.StatusCode != http.StatusOK {
+	// 	s.t.Logf("Expected 200 status code but got %d", resp.StatusCode)
+	// 	s.t.FailNow()
+	// }
 	return s
 }
