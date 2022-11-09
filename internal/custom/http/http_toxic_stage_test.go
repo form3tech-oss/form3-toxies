@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -24,6 +25,7 @@ type httpTestStage struct {
 	proxyPort      string
 	httpServer     *http.Server
 	toxyProxy      *toxiclient.Proxy
+	receivedData   string
 }
 
 func httpTest(t *testing.T) (*httpTestStage, *httpTestStage, *httpTestStage) {
@@ -56,10 +58,12 @@ func (s *httpTestStage) a_http_server() *httpTestStage {
 			if err != http.ErrServerClosed {
 				log.Fatal("error starting http server", err)
 			}
+			log.Print("server closed gracefully")
 		}
 	}()
 	time.Sleep(2 * time.Second)
 	s.t.Cleanup(func() {
+		fmt.Println("proxy and http server shutdown")
 		s.httpServer.Shutdown(context.TODO())
 		s.toxyProxy.Delete()
 	})
@@ -108,6 +112,14 @@ func (s *httpTestStage) a_http_call_succeeds(path string, httpMethod string) *ht
 		s.t.Logf("Expected 200 status code but got %d", resp.StatusCode)
 		s.t.FailNow()
 	}
+	receivedResp, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		s.t.FailNow()
+	}
+	defer resp.Body.Close()
+
+	s.receivedData = string(receivedResp)
+	fmt.Println("received data in handler", s.receivedData)
 	return s
 }
 
@@ -124,14 +136,20 @@ func (s *httpTestStage) a_http_call_fails(path string, httpMethod string) *httpT
 		s.t.Log(err)
 		s.t.FailNow()
 	}
-	_, err = httpClient.Do(httpRequest)
+	resp, err := httpClient.Do(httpRequest)
 	if err == nil {
-		s.t.Log("expected error, did not get one")
+		return s
+	}
+	if resp.StatusCode != http.StatusOK {
+		s.t.Logf("Expected 200 status code but got %d", resp.StatusCode)
 		s.t.FailNow()
 	}
-	// if resp.StatusCode != http.StatusOK {
-	// 	s.t.Logf("Expected 200 status code but got %d", resp.StatusCode)
-	// 	s.t.FailNow()
-	// }
+	receivedResp, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		s.t.FailNow()
+	}
+	defer resp.Body.Close()
+	s.receivedData = string(receivedResp)
+	fmt.Println("received data in failure handler", s.receivedData)
 	return s
 }

@@ -1,6 +1,8 @@
 package http
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_getHTTPMethod(t *testing.T) {
 	type args struct {
@@ -59,23 +61,22 @@ func TestNoOptionsSuccess(t *testing.T) {
 }
 
 func TestFailureOn(t *testing.T) {
-	// option := map[string]Condition{
-	// 	"/test": {
-	// 		FailOn:       2,
-	// 		RecoverAfter: 2,
-	// 		Method:       "GET",
-	// 	},
-	// }
+	option := map[string]Condition{
+		"/test": {
+			FailOn:       2,
+			RecoverAfter: 5,
+			Method:       "GET",
+		},
+	}
 
 	given, when, then := httpTest(t)
 	given.
-		a_http_toxic(nil).and().
+		a_http_toxic(option).and().
 		a_http_server()
 
 	when.
 		a_http_call_succeeds("/test", "GET")
-
 	then.
-		a_http_call_succeeds("/test", "GET")
+		a_http_call_fails("/test", "GET")
 	//a_http_call_succeeds("/test", "GET")
 }

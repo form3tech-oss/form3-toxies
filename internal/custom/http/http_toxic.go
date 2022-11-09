@@ -23,10 +23,12 @@ func (t *HttpToxic) Pipe(stub *toxics.ToxicStub) {
 	for {
 		select {
 		case <-stub.Interrupt:
+			fmt.Println("interrupted")
 			return
 		case c := <-stub.Input:
 
 			if c == nil {
+				fmt.Println("stub closed")
 				stub.Close()
 				return
 			}
