@@ -41,10 +41,10 @@ vendor:
 .PHONY: publish
 publish:
 	@echo "==> Building docker image..."
-	docker build --build-arg APPNAME=form3-toxies -f build/package/form3-toxies/Dockerfile -t $(DOCKER_IMG):$(TRAVIS_TAG) .
+	docker build --build-arg APPNAME=form3-toxies -f build/package/form3-toxies/Dockerfile -t $(DOCKER_IMG):$(DOCKER_TAG) .
 	@echo "==> Logging in to the docker registry..."
 	echo "$(DOCKER_PASSWORD)" | docker login -u "$(DOCKER_USERNAME)" --password-stdin
 	@echo "==> Pushing built image..."
-	docker push $(DOCKER_IMG):$(TRAVIS_TAG)
-	docker tag $(DOCKER_IMG):$(TRAVIS_TAG) $(DOCKER_IMG):latest
+	docker push $(DOCKER_IMG):$(DOCKER_TAG)
+	docker tag $(DOCKER_IMG):$(DOCKER_TAG) $(DOCKER_IMG):latest
 	docker push $(DOCKER_IMG):latest
